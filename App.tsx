@@ -5,20 +5,12 @@ import { MOCK_RECORDS } from './mockData';
 import { SERVER_NODES } from './constants';
 import { KpiCards } from './components/KpiCards';
 import { DataPipe } from './components/DataPipe';
+import { RouteCards } from './components/RouteCards';
 import { ExceptionGrid } from './components/ExceptionGrid';
 import { SqlReference } from './components/SqlReference';
 import { analyzeSyncHealth } from './services/geminiService';
 import { 
-  LayoutDashboard, 
-  Database, 
-  Search, 
-  RefreshCw, 
-  Menu,
-  ChevronRight,
-  BrainCircuit,
-  Terminal,
-  ChevronDown,
-  Monitor
+  Database, Search, RefreshCw, Menu, ChevronRight, BrainCircuit, Terminal, ChevronDown, Monitor, LayoutDashboard
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -47,199 +39,138 @@ const App: React.FC = () => {
   const handleForceSync = (id: string) => {
     setRecords(prev => prev.map(r => {
       if (r.id === id) {
-        const newFlag = r.flag === SyncFlag.DUBAI_UNPROCESSED ? SyncFlag.DUBAI_IN_TRANSIT : SyncFlag.PORT_IN_TRANSIT;
-        return { ...r, flag: newFlag as SyncFlag, lastModified: new Date().toISOString() };
+        // Advanced sync logic: check current flag to decide next step
+        let newFlag = r.flag;
+        if (r.flag === SyncFlag.DUBAI_UNPROCESSED) newFlag = SyncFlag.DUBAI_IN_TRANSIT;
+        else if (r.flag === SyncFlag.PORT_UNPROCESSED) newFlag = SyncFlag.PORT_IN_TRANSIT;
+        
+        return { ...r, flag: newFlag, lastModified: new Date().toISOString() };
       }
       return r;
     }));
   };
 
   useEffect(() => {
-    const fetchAiInsights = async () => {
-      const insight = await analyzeSyncHealth(records);
-      setAiInsight(insight);
-    };
-    fetchAiInsights();
+    analyzeSyncHealth(records).then(setAiInsight);
   }, [records.length]);
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Top Header - APEX Nav Bar */}
+      {/* APEX Top Header */}
       <header className="h-12 bg-[#0066cc] flex items-center px-4 justify-between text-white shadow-md z-30">
         <div className="flex items-center gap-4">
           <Menu size={20} className="cursor-pointer" />
-          <div className="flex items-center gap-2 font-bold text-sm">
+          <div className="flex items-center gap-2 font-bold text-sm tracking-tight">
             <Database size={18} />
             <span>ORACLE APEX</span>
-            <span className="font-light opacity-50 px-2">|</span>
-            <span>SyncMonitor Pro v2.5</span>
+            <span className="font-light opacity-30">|</span>
+            <span className="text-blue-100">SyncMonitor Pro v3.0</span>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-2 opacity-80 cursor-pointer hover:opacity-100">
-            <div className="w-6 h-6 rounded-full bg-blue-500 border border-blue-400 flex items-center justify-center font-bold">A</div>
-            <span>ADMIN_USER</span>
-            <ChevronDown size={14} />
-          </div>
+        <div className="flex items-center gap-4 text-xs font-semibold">
+          <span className="opacity-70">NODE: CLUSTER_01</span>
+          <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center border border-blue-400">A</div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Side Navigation / Faceted Search */}
+        {/* Faceted Sidebar */}
         <aside className="w-64 bg-white border-r border-slate-200 overflow-y-auto hidden lg:block">
-          <div className="p-4 border-b border-slate-100 bg-slate-50">
-            <div className="flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest">
-              <Search size={14} />
-              Faceted Search
-            </div>
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <Search size={14} /> Faceted Filters
           </div>
-          
           <div className="p-4 space-y-6">
             <div>
-              <h4 className="text-[11px] font-bold text-slate-400 uppercase mb-3">Data Category</h4>
+              <h4 className="text-[11px] font-bold text-slate-800 uppercase mb-3 border-b border-slate-100 pb-1">Data Category</h4>
               <div className="space-y-2">
                 {['All', DataCategory.MASTER, DataCategory.TRANSACTION].map((cat) => (
                   <label key={cat} className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                      type="radio" 
-                      name="cat" 
-                      checked={categoryFilter === cat} 
-                      onChange={() => setCategoryFilter(cat as any)}
-                      className="w-3 h-3 text-blue-600 border-slate-300 focus:ring-blue-500" 
-                    />
-                    <span className={`text-sm ${categoryFilter === cat ? 'text-blue-600 font-semibold' : 'text-slate-600'}`}>{cat === 'All' ? 'All Data' : cat}</span>
+                    <input type="radio" checked={categoryFilter === cat} onChange={() => setCategoryFilter(cat as any)} className="w-3 h-3 text-blue-600 focus:ring-blue-500" />
+                    <span className={`text-sm ${categoryFilter === cat ? 'text-blue-600 font-bold' : 'text-slate-600 hover:text-blue-500'}`}>{cat === 'All' ? 'All (Master/Trans)' : cat}</span>
                   </label>
                 ))}
               </div>
             </div>
-
             <div>
-              <h4 className="text-[11px] font-bold text-slate-400 uppercase mb-3">Sync Logic</h4>
+              <h4 className="text-[11px] font-bold text-slate-800 uppercase mb-3 border-b border-slate-100 pb-1">Data Type</h4>
               <div className="space-y-2">
-                {['All', SyncRule.SALES_RETURN, SyncRule.ALL_DATA].map((rule) => (
-                  <label key={rule} className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="rule" 
-                      checked={ruleFilter === rule} 
-                      onChange={() => setRuleFilter(rule as any)}
-                      className="w-3 h-3 text-blue-600 border-slate-300 focus:ring-blue-500" 
-                    />
-                    <span className={`text-sm ${ruleFilter === rule ? 'text-blue-600 font-semibold' : 'text-slate-600'}`}>{rule === 'All' ? 'Full Scope' : rule}</span>
+                {['All', SyncRule.SALES_RETURN].map((rule) => (
+                  <label key={rule} className="flex items-center gap-2 cursor-pointer group">
+                    <input type="radio" checked={ruleFilter === rule} onChange={() => setRuleFilter(rule as any)} className="w-3 h-3 text-blue-600 focus:ring-blue-500" />
+                    <span className={`text-sm ${ruleFilter === rule ? 'text-blue-600 font-bold' : 'text-slate-600 hover:text-blue-500'}`}>{rule === 'All' ? 'All Types' : 'Sales & Return Only'}</span>
                   </label>
                 ))}
               </div>
             </div>
-
-            <div className="pt-4 border-t border-slate-100">
-              <button 
-                onClick={() => setShowSql(!showSql)}
-                className="w-full flex items-center justify-between p-2 rounded bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Terminal size={14} />
-                  {showSql ? 'Hide SQL Logic' : 'View APEX SQL'}
-                </div>
-                <ChevronRight size={14} className={showSql ? 'rotate-90' : ''} />
-              </button>
-            </div>
+            <button onClick={() => setShowSql(!showSql)} className="w-full mt-4 flex items-center justify-center gap-2 py-2 bg-slate-900 text-blue-400 text-[10px] font-bold rounded uppercase hover:bg-black transition-all">
+              <Terminal size={14} /> {showSql ? 'Hide SQL Logic' : 'View SQL Source'}
+            </button>
           </div>
         </aside>
 
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto bg-[#f9fafb]">
-          {/* Breadcrumbs */}
-          <div className="bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        {/* Dashboard Canvas */}
+        <div className="flex-1 overflow-y-auto bg-[#f2f2f2]">
+          {/* Breadcrumb / Action Bar */}
+          <div className="bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between sticky top-0 z-20">
             <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-              <LayoutDashboard size={14} />
-              <span>Dashboard</span>
-              <ChevronRight size={12} />
-              <span className="text-slate-900 font-bold">Sync Monitor</span>
+              <LayoutDashboard size={14} /> <span>Dashboard</span> <ChevronRight size={12} /> <span className="text-slate-900 font-bold">Monitor</span>
             </div>
-            
-            <div className="flex gap-2">
-               <button 
-                onClick={handleRefresh}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-bold text-slate-700 hover:bg-slate-50 active:shadow-inner"
-              >
-                <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-                Refresh Page
-              </button>
-            </div>
+            <button onClick={handleRefresh} className="bg-[#0066cc] text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-blue-700 active:scale-95 transition-all shadow-sm">
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> REFRESH DASHBOARD
+            </button>
           </div>
 
-          <div className="p-8 max-w-7xl mx-auto">
-            {/* APEX Region: Metrics */}
-            <div className="mb-8">
-              <KpiCards records={filteredRecords} activeNodes={activeNodesCount} />
+          <div className="p-8 max-w-7xl mx-auto space-y-6">
+            {/* Story Text */}
+            <div className="bg-white p-4 border border-slate-200 rounded text-xs text-slate-600 italic leading-relaxed shadow-sm">
+              "Our dashboard treats each server as a node. We track the 'Travel' by monitoring the change in status flags. When a record is created in Dubai, it's 'TN'. Once it reaches 'TY', the travel is complete. This allows management to see exactly which regional port (Tanzania or Kenya) is lagging."
             </div>
 
-            {showSql && <SqlReference />}
+            {/* Row 1: Global KPIs */}
+            <KpiCards records={filteredRecords} activeNodes={activeNodesCount} />
 
-            {/* AI Insight (APEX Style Alert) */}
+            {/* AI Insights Alert */}
             {aiInsight && (
-              <div className="mb-8 bg-blue-50 border-l-4 border-blue-600 p-4 shadow-sm flex gap-4">
+              <div className="bg-white border-l-4 border-blue-600 p-4 shadow-sm flex gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
                 <BrainCircuit size={24} className="text-blue-600 flex-shrink-0" />
                 <div>
-                  <h5 className="text-xs font-bold text-blue-900 uppercase mb-1">Infrastructure Health Insight</h5>
-                  <p className="text-sm text-blue-800 leading-relaxed mb-2">{aiInsight.summary}</p>
-                  <div className="text-xs font-bold text-blue-600">Action Plan: {aiInsight.recommendation}</div>
+                  <h5 className="text-[10px] font-bold text-blue-900 uppercase tracking-widest">System Intelligence Advice</h5>
+                  <p className="text-sm text-slate-700 mt-1 leading-relaxed">{aiInsight.summary}</p>
+                  <p className="text-xs font-bold text-blue-600 mt-2">DBA Action: {aiInsight.recommendation}</p>
                 </div>
               </div>
             )}
 
-            {/* Data Pipeline Regions */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8">
-              <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <DataPipe 
-                  title="Dubai Main Sync (DM)" 
-                  source="DM" 
-                  destination="DS" 
-                  records={filteredRecords}
-                  type="Dubai"
-                />
-                <DataPipe 
-                  title="Tanzania Link (TS)" 
-                  source="DM" 
-                  destination="TS" 
-                  records={filteredRecords}
-                  type="Port"
-                />
-              </div>
-              
-              <div className="apex-region p-6 flex flex-col justify-center">
-                <div className="text-center">
-                  <Monitor size={48} className="mx-auto text-slate-300 mb-4" />
-                  <h4 className="font-bold text-slate-800 mb-2">DB Link Heartbeat</h4>
-                  <div className="space-y-3">
-                    {SERVER_NODES.map(node => (
-                      <div key={node.id} className="flex items-center justify-between text-xs p-2 bg-slate-50 rounded border border-slate-100">
-                        <span className="font-bold text-slate-600">{node.name}</span>
-                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${node.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {node.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            {showSql && <SqlReference />}
+
+            {/* Row 2: Aggregate Pipe Visuals */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DataPipe 
+                title="Dubai Aggregate Pipe (DM ↔ DS / TS→DS / KS→DS)" 
+                records={filteredRecords.filter(r => r.destination === 'DS')} 
+                type="Dubai" 
+              />
+              <DataPipe 
+                title="Port Aggregate Pipe (DM ↔ TS / DM ↔ KS / TS→DM / KS→DM)" 
+                records={filteredRecords.filter(r => (r.source === 'TS' || r.source === 'KS' || r.destination === 'TS' || r.destination === 'KS') && r.destination !== 'DS')} 
+                type="Port" 
+              />
             </div>
 
-            {/* Interactive Grid Region */}
+            {/* Row 3: Route-wise Travel Status Cards */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-px bg-slate-200 flex-1"></div>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Route-wise Travel Status</h4>
+                <div className="h-px bg-slate-200 flex-1"></div>
+              </div>
+              <RouteCards records={filteredRecords} />
+            </div>
+
+            {/* Row 4: Exception Grid (IG) */}
             <div className="apex-region">
-              <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
-                <div className="flex items-center gap-2 font-bold text-xs text-slate-700 uppercase">
-                  <Terminal size={14} className="text-blue-600" />
-                  Sync Exception Report (Interactive Grid)
-                </div>
-                <div className="flex gap-1">
-                  <div className="h-5 w-5 bg-white border border-slate-200 flex items-center justify-center rounded shadow-sm text-slate-400 cursor-pointer">
-                    <ChevronRight size={12} className="rotate-180" />
-                  </div>
-                  <div className="h-5 w-5 bg-white border border-slate-200 flex items-center justify-center rounded shadow-sm text-slate-400 cursor-pointer">
-                    <ChevronRight size={12} />
-                  </div>
-                </div>
+              <div className="bg-slate-50 p-3 border-b border-slate-200 flex items-center gap-2 font-bold text-[10px] text-slate-500 uppercase tracking-wider">
+                <Terminal size={14} className="text-blue-600" /> Interactive Grid: Sync Exception Report
               </div>
               <ExceptionGrid records={filteredRecords} onForceSync={handleForceSync} />
             </div>

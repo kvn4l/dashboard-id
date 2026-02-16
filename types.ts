@@ -9,21 +9,13 @@ export enum SyncFlag {
 }
 
 export enum DataCategory {
-  MASTER = 'Master Data',
-  TRANSACTION = 'Transaction Data'
+  MASTER = 'Master',
+  TRANSACTION = 'Transaction'
 }
 
 export enum SyncRule {
-  SALES_RETURN = 'Sales & Return Only',
-  ALL_DATA = 'All Data'
-}
-
-export interface ServerNode {
-  id: string;
-  name: string;
-  ip: string;
-  status: 'Active' | 'Inactive';
-  type: 'Dubai' | 'Port';
+  SALES_RETURN = 'SalesReturn',
+  ALL_DATA = 'All'
 }
 
 export interface SyncRecord {
@@ -33,14 +25,7 @@ export interface SyncRecord {
   category: DataCategory;
   rule: SyncRule;
   flag: SyncFlag;
-  timestamp: string; // ISO String
-  lastModified: string; // ISO String
+  timestamp: string;
+  lastModified: string;
   description: string;
-}
-
-export interface DashboardMetrics {
-  totalPendingDubai: number;
-  totalPendingPorts: number;
-  successRate: number;
-  activeLinks: number;
 }
